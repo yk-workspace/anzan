@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>暗算ドリル</title>
+<meta name="description" content="100マス計算の代わりになる、自動ペースの暗算ドリル。たし算・ひき算・かけ算・わり算、小数・あまり対応。オフラインで使えるPWA。">
+<meta name="theme-color" content="#12151c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="暗算ドリル">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#12151c;--card:#1b2030;--line:#2a3147;--tx:#eef1f8;--mu:#8f99b5;--ac:#f5a623;--ok:#35c98a;--ng:#ff5d6c;color-scheme:dark}
+@media(prefers-color-scheme:light){:root{--bg:#f4f1ea;--card:#fff;--line:#e3ddd0;--tx:#232733;--mu:#6b7080;--ac:#e08e0b;--ok:#14935f;--ng:#d8344a;color-scheme:light}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html{height:100%;background:var(--bg)}
+body{height:100%;margin:0 auto;max-width:520px;display:flex;flex-direction:column;background:var(--bg);color:var(--tx);font:500 15px/1.45 "Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+button,select,input{font:inherit;color:inherit}
+header{display:flex;align-items:center;gap:8px;padding:8px 12px}
+h1{flex:1;margin:0;font-size:18px;letter-spacing:.05em}h1 b{color:var(--ac)}
+h2{margin:10px 2px 0;font-size:12px;color:var(--mu);letter-spacing:.08em}
+select,input[type=number]{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 9px;max-width:62%}
+input[type=number]{width:68px;text-align:center}
+input[type=checkbox]{width:22px;height:22px;accent-color:var(--ac)}
+.ib{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:15px;cursor:pointer;touch-action:manipulation}
+main{flex:1;min-height:0;position:relative}
+.v{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;padding:4px 12px 10px;overflow-y:auto}
+.col{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px}
+.mu{color:var(--mu)}
+.row{display:flex;gap:8px;align-items:center}
+.btn{flex:1;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 8px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.btn.pri{background:var(--ac);color:#1b1305;border-color:transparent}
+.btn.lg{flex:none;padding:20px;font-size:22px}
+.btn:active,.key:active{transform:scale(.96)}
+.meta{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mu)}
+#tb{height:9px;border-radius:6px;background:var(--line);overflow:hidden}
+#tb i{display:block;height:100%;width:100%;background:var(--ok);transition:width .1s linear}
+#tb.lo i{background:var(--ng)}
+.q{min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px}
+#qt{font:800 clamp(34px,11vw,56px)/1.15 ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;word-break:break-all}
+#ft{min-height:28px;font-weight:700;font-size:18px}.fok{color:var(--ok)}.fng{color:var(--ng)}
+#ans{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 14px;text-align:right;min-height:54px;font:800 30px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--ac);white-space:nowrap;overflow-x:auto}
+#ans span.on{border-bottom:3px solid var(--ac)}#ans small{font:600 14px system-ui;color:var(--mu)}
+.pad{flex:1;min-height:200px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.key{border:1px solid var(--line);background:var(--card);border-radius:14px;font:700 26px/1 ui-monospace,Menlo,Consolas,monospace;cursor:pointer;touch-action:manipulation}
+.key:disabled{opacity:.35}.key.f{font-size:17px;color:var(--mu)}.z,.go{grid-column:span 2}
+.go{background:var(--ac);color:#1b1305;border-color:transparent;font:800 20px system-ui}
+.hint{background:var(--bg);border-radius:12px;padding:8px 12px;font-size:13px}.hint b{color:var(--ac);text-decoration:underline;cursor:pointer}
+#sheet{position:fixed;inset:0;z-index:20;background:#0009;display:flex;align-items:flex-end;justify-content:center}
+.sh{width:100%;max-width:520px;display:flex;flex-direction:column;gap:12px;background:var(--card);border-radius:22px 22px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+label{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+label:last-child{border-bottom:0}
+.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.sg b{display:block;font:800 21px ui-monospace,Menlo,Consolas,monospace}.sg small{color:var(--mu);font-size:11px}
+.bar{height:9px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--ok)}
+.hr{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.hr .o{font-weight:900;width:1.2em}
+svg text{fill:var(--mu);font-size:10px}svg .t{fill:var(--tx)}
+nav{display:flex;border-top:1px solid var(--line);background:var(--card);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;padding:7px 0 5px;color:var(--mu);font-size:11px;font-weight:700;cursor:pointer}
+nav button b{display:block;font-size:19px;line-height:1.2}nav .on{color:var(--ac)}
+canvas{position:fixed;inset:0;pointer-events:none;z-index:30}
+@media(max-height:660px){.q{min-height:110px}.pad{min-height:170px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<header>
+  <h1>暗算<b>ドリル</b></h1>
+  <select id="user" aria-label="ユーザー"></select>
+  <button class="ib" id="vis" aria-label="問題の表示">👁</button>
+  <button class="ib" id="snd" aria-label="音">🔊</button>
+</header>
+<main>
+  <section class="v" id="v-play">
+    <div class="col" id="idle">
+      <div class="card" id="goal"></div>
+      <div class="card" id="sumry"></div>
+      <button class="btn pri lg" data-a="start">▶ スタート</button>
+      <button class="btn" id="bRedo" data-a="redo" hidden></button>
+    </div>
+    <div class="col" id="run" hidden>
+      <div class="meta"><span id="pg"></span><span id="tl"></span><span><button class="ib" data-a="pause" aria-label="一時停止">⏸</button> <button class="ib" data-a="quit">✕ やめる</button></span></div>
+      <div id="tb"><i></i></div>
+      <div class="card q" data-a="rq"><div id="qt"></div><div id="ft"></div></div>
+      <div id="ans"></div>
+      <div class="pad">
+        <button class="key" data-d="7">7</button><button class="key" data-d="8">8</button><button class="key" data-d="9">9</button><button class="key f" data-a="bs">⌫</button>
+        <button class="key" data-d="4">4</button><button class="key" data-d="5">5</button><button class="key" data-d="6">6</button><button class="key f" data-a="clr">C</button>
+        <button class="key" data-d="1">1</button><button class="key" data-d="2">2</button><button class="key" data-d="3">3</button><button class="key f" id="kx" data-a="kx"></button>
+        <button class="key z" data-d="0">0</button><button class="key go" data-a="go">こたえる</button>
+      </div>
+    </div>
+    <div class="col" id="res" hidden></div>
+  </section>
+
+  <section class="v" id="v-set" hidden>
+    <h2>出す問題</h2>
+    <div class="card">
+      <label>たし算<input type="checkbox" data-k="oa"></label>
+      <label>ひき算<input type="checkbox" data-k="os"></label>
+      <label>かけ算<input type="checkbox" data-k="om"></label>
+      <label>わり算<input type="checkbox" data-k="od"></label>
+      <label>たし算・ひき算のレベル<select data-k="al" data-t="n"></select></label>
+      <label>かけ算・わり算のレベル<select data-k="ml" data-t="n"></select></label>
+      <label>小数あり（小数第1位）<input type="checkbox" data-k="dec"></label>
+      <label>わり算にあまりあり<input type="checkbox" data-k="rem"></label>
+    </div>
+    <h2>進め方</h2>
+    <div class="card">
+      <label>1セットの問題数<select data-k="setn" data-t="n"><option>5</option><option>10</option><option>20</option><option>30</option><option>50</option></select></label>
+      <label>ペース（制限時間）<select data-k="pace"><option value="slow">自動（ゆっくり）：余裕を多めに取ります</option><option value="auto">自動（ふつう）：おすすめ</option><option value="fast">自動（はやめ）：少し急ぎます</option><option value="fix">固定秒数</option><option value="none">なし（時間制限なし）</option></select></label>
+      <label id="r-fix">1問の制限時間（秒）<input type="number" data-k="fix" data-t="n" min="3" max="120"></label>
+      <label>桁数がそろったら自動で確定<input type="checkbox" data-k="auto"></label>
+      <label>1日の目標（問）<input type="number" data-k="goal" data-t="n" min="1" max="500"></label>
+    </div>
+    <h2>声</h2>
+    <div class="card">
+      <label>問題を読み上げる<input type="checkbox" data-k="read"></label>
+      <label>問題を画面に表示する（読み上げがオフのときは常に表示）<input type="checkbox" data-k="show"></label>
+      <label>声かけ（せいかい・あと3もん など）<input type="checkbox" data-k="talk"></label>
+      <label>声の種類<select data-k="voice"></select></label>
+    </div>
+    <h2>ユーザー</h2>
+    <div class="card"><div class="row"><button class="btn" data-a="add">追加</button><button class="btn" data-a="ren">名前変更</button><button class="btn" data-a="del">削除</button></div></div>
+    <h2>データ</h2>
+    <div class="card">
+      <div class="row"><button class="btn" data-a="exp">バックアップ保存</button><button class="btn" data-a="imp">読み込み</button></div>
+      <p class="mu" style="font-size:12px;margin:8px 0">記録はこの端末のブラウザ内にだけ保存されます。ときどきバックアップを保存してください。</p>
+      <button class="btn" style="width:100%" data-a="clr2">このユーザーの記録を消去</button>
+      <input type="file" id="file" accept="application/json,.json" hidden>
+    </div>
+  </section>
+
+  <section class="v" id="v-log" hidden><div id="log"></div></section>
+</main>
+<nav>
+  <button data-tab="play" class="on"><b>🧮</b>れんしゅう</button>
+  <button data-tab="set"><b>⚙️</b>せってい</button>
+  <button data-tab="log"><b>📈</b>きろく</button>
+</nav>
+<div id="sheet" hidden></div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const DEF={oa:true,os:true,om:false,od:false,al:1,ml:1,dec:false,rem:false,setn:10,pace:'auto',fix:10,auto:false,read:true,show:true,talk:true,voice:'',snd:true,goal:30};
+// たし算・ひき算: [名前, 1つ目の桁, 2つ目の桁, くり上がり/下がり, 数の個数, 基準秒, たし算のみ]
+//   none: くり上がり・くり下がりのない問題だけ
+//   mix : ある問題とない問題を混ぜる（あり の問題を最低 MIXR の割合で出す）
+//   any : 制御なし（ランダム）
+const MIXR=.5;
+const AL=[['1桁±1桁（くり上がり・下がりなし）',1,1,'none',2,6],['1桁＋1桁（くり上がりあり・たし算のみ）',1,1,'mix',2,7,1],['2桁±1桁（なし）',2,1,'none',2,8],['2桁±1桁（あり）',2,1,'mix',2,10],['2桁±2桁（なし）',2,2,'none',2,12],['2桁±2桁（あり）',2,2,'mix',2,15],['3桁±2桁',3,2,'any',2,18],['3桁±3桁',3,3,'any',2,22],['2桁を3つ',2,2,'any',3,18],['2桁を4つ',2,2,'any',4,24],['3桁を3つ',3,3,'any',3,30]];
+// かけ算・わり算: [名前, かけ算の桁[a,b], わり算[わる数の範囲, 商の範囲], 基準秒]
+const ML=[['九九（1桁×1桁）',[1,1],[2,9,1,9],6],['2桁×1桁・小さいわり算',[2,1],[2,9,2,12],10],['2桁×2桁・3桁÷1桁',[2,2],[2,9,10,99],22],['3桁×2桁・3〜4桁÷2桁',[3,2],[11,99,2,20],35]];
+
+/* ---------- 保存 ---------- */
+let DB=null;try{DB=JSON.parse(localStorage.getItem('anzan2'))}catch(e){}
+if(!DB||!DB.users||!DB.users[DB.cur])DB={cur:'じぶん',users:{'じぶん':{}}};
+const save=()=>{try{localStorage.setItem('anzan2',JSON.stringify(DB))}catch(e){}};
+const U=()=>DB.users[DB.cur];
+let S,recs;
+function load(){const u=U();u.s=u.s||{};u.r=Array.isArray(u.r)?u.r:[];u.st=u.st||{};u.best=u.best||{};u.good=u.good||{};S=Object.assign({},DEF,u.s);u.s=S;recs=u.r}
+
+/* ---------- 共通 ---------- */
+const R=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const dg=d=>R(d===1?1:10**(d-1),10**d-1),mn=d=>d===1?R(2,9):dg(d);
+const fd=(v,dec)=>dec?(v%10===0?String(v/10):(v/10).toFixed(1)):String(v);
+const fa=p=>p.r!==undefined?p.ans+' あまり '+p.r:fd(p.ans,p.dec);
+const dk=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const miss=()=>{const s=new Set();return recs.filter(r=>!r.ok&&!r.d&&!s.has(r.k+r.p.txt)&&s.add(r.k+r.p.txt))};
+const mk=()=>(S.oa?'+':'')+(S.os?'-':'')+(S.om?'×':'')+(S.od?'÷':'')+'|'+S.al+'|'+S.ml+'|'+(S.dec?'d':'')+(S.rem?'r':'');
+const aOps=(lv=S.al)=>[S.oa&&'+',S.os&&!AL[lv-1][6]&&'-'].filter(Boolean);
+const mOps=()=>[S.om&&'×',S.od&&'÷'].filter(Boolean);
+const nextAl=lv=>{let n=lv+1;while(n<=AL.length&&!aOps(n).length)n++;return n<=AL.length?n:0};
+const kname=k=>k[0]==='A'?AL[+k.slice(1)-1][0]:ML[+k[1]-1][0].split('・')[0]+' '+k[2];
+let P,cp,u=['',''],fi=0,phase='idle',tq=0,tlm=0,tok=0,ses=null,wl=null;
+
+/* ---------- 効果音・声・演出 ---------- */
+let ac;
+function beep(seq){if(!S.snd)return;try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state!=='running')ac.resume();let t=ac.currentTime;seq.forEach(([f,d,ty])=>{const o=ac.createOscillator(),g=ac.createGain();o.type=ty||'sine';o.frequency.value=f;g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+d+.02);t+=d*.7})}catch(e){}}
+const syn=window.speechSynthesis;let voices=[];
+// 声の「自動」: 日本語の声の中から、いちばん自然そうなものを選ぶ。
+//   Natural(Edge等のオンライン高品質) > Premium/Enhanced/拡張/プレミアム(iPhone・Mac) > Google > 端末の標準の声 > その他
+function voiceScore(v){
+  const n=v.name||'';let sc=0;
+  if(/natural/i.test(n))sc+=100;
+  if(/neural|online/i.test(n))sc+=30;
+  if(/premium|enhanced|拡張|プレミアム|高品質|siri/i.test(n))sc+=60;
+  if(/google/i.test(n))sc+=40;
+  if(v.default)sc+=5;
+  return sc;
+}
+let autoVoice=null;
+function pickVoice(){
+  const m=voices.find(y=>y.name===S.voice);
+  return m||autoVoice||voices[0]||null;   // 保存した声が無くなっていたら自動に戻る
+}
+function loadVoices(){
+  const all=syn?syn.getVoices().filter(v=>/^ja/i.test(v.lang)):[];   // Androidの ja_JP も含む
+  // 点数の高い順（同点は元の順）。一覧の先頭＝自動で使う声
+  voices=all.map((v,i)=>({v,i,sc:voiceScore(v)})).sort((a,b)=>b.sc-a.sc||a.i-b.i).map(x=>x.v);
+  autoVoice=voices[0]||null;
+  const s=$('[data-k=voice]');s.textContent='';
+  [['','自動（おすすめ）'+(autoVoice?'：'+autoVoice.name:'')],...voices.map(v=>[v.name,v.name])].forEach(([val,label])=>{const o=document.createElement('option');o.value=val;o.textContent=label;s.appendChild(o)});
+  s.value=S&&voices.some(v=>v.name===S.voice)?S.voice:'';
+}
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+// 読み上げは、すべてこの say() / stopSay() を通す。
+//  - say() は「読み終わったら解決するPromise」を返す。続けて別の読み上げをするときは await する（途中で切らない）。
+//  - 新しい say() が来たら、前の読み上げは止め、まだ始まっていない前の予約は取り消す（二重・遅れて鳴るのを防ぐ）。
+//  - 読み終わりの通知が来ない端末に備えて、文字数に応じた時間で打ち切る。
+let sayGen=0;
+function stopSay(){sayGen++;try{if(syn)syn.cancel()}catch(e){}}
+function say(t){
+  return new Promise(res=>{
+    if(!syn||!S.snd){res();return}
+    const my=++sayGen;
+    try{
+      syn.cancel();
+      setTimeout(()=>{
+        if(my!==sayGen){res();return}
+        try{
+          const x=new SpeechSynthesisUtterance(t);x.lang='ja-JP';x.rate=1.15;
+          // 選んだ声の言語をそのまま使う（Android Chromeで声が切り替わらないのを防ぐ）
+          const v=pickVoice();if(v){x.voice=v;if(v.lang)x.lang=v.lang}
+          let d=false;const f=()=>{if(!d){d=true;res()}};
+          x.onend=f;x.onerror=f;setTimeout(f,Math.min(8000,2000+t.length*300));
+          syn.speak(x);
+        }catch(e){res()}
+      },30);
+    }catch(e){res()}
+  });
+}
+const fx=$('#fx'),fc=fx.getContext('2d');let ps=[],raf=0;
+function conf(){if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;fx.width=innerWidth;fx.height=innerHeight;for(let i=0;i<90;i++)ps.push({x:fx.width/2,y:fx.height*.4,vx:(Math.random()-.5)*14,vy:-Math.random()*14-4,s:4+Math.random()*6,c:'hsl('+R(0,360)+',85%,60%)',r:Math.random()*6,l:1});if(!raf)raf=requestAnimationFrame(stepFx)}
+function stepFx(){fc.clearRect(0,0,fx.width,fx.height);ps=ps.filter(p=>p.l>0);ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.35;p.l-=.014;p.r+=.2;fc.globalAlpha=Math.max(p.l,0);fc.fillStyle=p.c;fc.save();fc.translate(p.x,p.y);fc.rotate(p.r);fc.fillRect(-p.s/2,-p.s/2,p.s,p.s);fc.restore()});raf=ps.length?requestAnimationFrame(stepFx):0;if(!raf)fc.clearRect(0,0,fx.width,fx.height)}
+// iPhone/iPadは、最初の音声・効果音を「画面をタップした瞬間」に開始しないと、あとで鳴らせない。
+// 最初のタップ/キー入力で、無音の読み上げと無音の効果音を1回だけ出して使えるようにする。
+let unl=false;
+function unlockAudio(){
+  if(unl)return;unl=true;
+  try{if(syn){const x=new SpeechSynthesisUtterance(' ');x.volume=0;x.lang='ja-JP';syn.speak(x)}}catch(e){}
+  try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state!=='running')ac.resume();const b=ac.createBuffer(1,1,22050),o=ac.createBufferSource();o.buffer=b;o.connect(ac.destination);o.start(0)}catch(e){}
+}
+['pointerdown','touchend','click','keydown'].forEach(t=>addEventListener(t,unlockAudio,{capture:true,once:true,passive:true}));
+async function lock(){try{if('wakeLock'in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.onrelease=()=>{wl=null}}}catch(e){}}
+function unlock(){if(wl){wl.release().catch(()=>{});wl=null}}
+// 一時停止: 画面を離れたとき・⏸を押したとき。制限時間は止まり、再開すると残りの時間から続く。
+function hold(){
+  if(!ses||!['q','cd','fb'].includes(phase))return;
+  const m=phase;ses.hold={m,el:m==='q'?performance.now()-tq:0};
+  tok++;stopSay();ph('hold');
+  $('#sheet').innerHTML='<div class="sh"><b>いちじ ていし中</b><div class="row"><button class="btn" data-a="quit">おわる</button><button class="btn pri" data-a="unhold">つづける</button></div></div>';
+  $('#sheet').hidden=false;
+}
+function unhold(){
+  if(!ses||phase!=='hold')return;
+  const h=ses.hold;ses.hold=null;$('#sheet').hidden=true;lock();
+  if(h.m==='q'){tq=performance.now()-h.el;ph('q');upd()}
+  else if(h.m==='cd'){ph('cd');countdown()}
+  else{ph('fb');after()}
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden')hold();
+  else if(ses&&phase!=='sum')lock();
+});
+
+/* ---------- 問題生成 ---------- */
+function cy(a,b,o){let c=0,k=0;while(a>0||b>0){const x=a%10,y=b%10;if(o==='+'){if(x+y+k>9){c++;k=1}else k=0}else{if(x-k<y){c++;k=1}else k=0}a=Math.floor(a/10);b=Math.floor(b/10)}return c}
+function pair(o,da,db,cm){
+  let a,b;
+  for(let i=0;i<300;i++){
+    a=dg(da);b=dg(db);
+    if(o==='-'&&a<b){const t=a;a=b;b=t}
+    const c=cy(a,b,o);
+    if(cm==='none'&&c)continue;
+    if(cm==='must'&&!c)continue;
+    return[a,b];
+  }
+  return o==='-'&&a<b?[b,a]:[a,b];
+}
+function genA(){
+  const[,da,db,cm,n,base]=AL[S.al-1],ops=aOps(),dec=S.dec;
+  let nums,os=[],ans,pk='A'+S.al;
+  if(n===2){
+    const o=ops[R(0,ops.length-1)];let m=cm;
+    if(cm==='mix'){
+      // 「あり」の割合が MIXR を下回っていたら必ず「あり」、それ以外は半々
+      const c=ses?ses.cc:[0,0];
+      m=c[0]<(c[1]+1)*MIXR||Math.random()<.5?'must':'none';
+    }
+    let[a,b]=pair(o,da,db,m);const hc=cy(a,b,o)>0;
+    pk='A'+S.al+o+(hc?'c':'');
+    if(ses&&cm==='mix'){ses.cc[1]++;if(hc)ses.cc[0]++}
+    if(o==='+'&&Math.random()<.5){const t=a;a=b;b=t}
+    nums=[a,b];os=[o];ans=o==='+'?a+b:a-b;
+  }else{
+    // 途中や答えがマイナスにならないようにする。ひき算のみのときは、たし算に切り替えず作り直す
+    const lo=da===1?1:10**(da-1),canAdd=ops.includes('+');
+    for(let t=0;t<500;t++){
+      nums=[dg(da)];os=[];let c=nums[0],okk=true;
+      for(let i=1;i<n;i++){
+        let o=ops[R(0,ops.length-1)],v=dg(da);
+        if(o==='-'&&v>c){if(c>=lo)v=R(lo,c);else if(canAdd)o='+';else{okk=false;break}}
+        c=o==='+'?c+v:c-v;nums.push(v);os.push(o);
+      }
+      ans=c;if(okk)break;
+    }
+  }
+  const j=(w)=>nums.map((v,i)=>(i?(os[i-1]==='+'?w[0]:w[1]):'')+fd(v,dec)).join(' ');
+  return{k:'A'+S.al,pk:pk+(dec?'d':''),txt:j(['＋ ','－ ']),say:j(['たす ','ひく ']),ans,dec,base:base*(dec?1.3:1),f:'a'};
+}
+function genM(){
+  const[,[da,db],[blo,bhi,qlo,qhi],base]=ML[S.ml-1],ops=mOps(),o=ops[R(0,ops.length-1)];
+  let dec=S.dec,txt,say,ans,r;
+  if(o==='×'){
+    const A=mn(da),B=mn(db),x=fd(A,dec),sw=Math.random()<.5;
+    ans=A*B;txt=sw?B+' × '+x:x+' × '+B;say=sw?B+' かける '+x:x+' かける '+B;
+  }else{
+    const b=R(blo,bhi),q=R(qlo,qhi);let dv;
+    if(S.rem&&(!dec||Math.random()<.5)){dec=false;r=Math.random()<.75?R(1,b-1):0;dv=b*q+r}
+    else dv=b*q;
+    ans=q;txt=fd(dv,dec)+' ÷ '+b;say=fd(dv,dec)+' わる '+b;
+  }
+  const p={k:'M'+S.ml+o,pk:'M'+S.ml+o+(r!==undefined?'r':dec?'d':''),txt,say,ans,dec,base:base*(dec?1.3:1),f:'m'};if(r!==undefined)p.r=r;return p;
+}
+function gen(){const fa_=aOps().length>0,fm=mOps().length>0;return fa_&&(!fm||Math.random()<.6)?genA():genM()}
+// 自動ペース: [倍率, 足す秒, 上限(基準秒の何倍)]
+const PACE={slow:[2.5,2,3],auto:[2,1,2],fast:[1.5,1,2]};
+const isAuto=()=>!!PACE[S.pace];
+// 履歴(pk)は「レベル×演算×くり上がり・くり下がりの有無×小数の有無」ごと。数が3つ以上のレベルはレベル単位
+function limOf(pk,base){
+  const[k,pad,mx]=PACE[S.pace]||PACE.auto,a=U().st[pk]||[];
+  if(a.length<3)return{sec:Math.round(base*2*2)/2,first:true};
+  const m=a.reduce((x,y)=>x+y,0)/a.length;
+  return{sec:Math.round(Math.max(base*.5,Math.min(base*mx,m*k+pad))*2)/2,first:false};
+}
+function tlim(p){
+  // やり直し・再出題は時間制限なし
+  if(ses.list||ses.re||S.pace==='none')return 0;
+  if(S.pace==='fix')return S.fix;
+  return limOf(p.pk,p.base).sec;
+}
+// 自動ペースの履歴に追加（直近10件）
+function addSt(pk,v){const st=U().st[pk]=U().st[pk]||[];st.push(+v.toFixed(1));if(st.length>10)st.shift()}
+// 開始前の画面に出す、今の設定で出る種類ごとの制限時間の目安
+function paceInfo(){
+  const out=[],dec=S.dec?'d':'',bm=S.dec?1.3:1;
+  if(aOps().length){
+    const[,,,cm,n,base]=AL[S.al-1];
+    if(n>2)out.push(['たし・ひき','A'+S.al+dec,base]);
+    else aOps().forEach(o=>{
+      const nm=o==='+'?'＋':'－',cn=o==='+'?'くり上がり':'くり下がり';
+      if(cm!=='none')out.push([nm+cn+'あり','A'+S.al+o+'c'+dec,base]);
+      out.push([nm+(cm==='none'?'':cn+'なし'),'A'+S.al+o+dec,base]);
+    });
+  }
+  if(mOps().length){
+    const base=ML[S.ml-1][3];
+    mOps().forEach(o=>{
+      if(o==='÷'&&S.rem){out.push(['÷あまり','M'+S.ml+o+'r',base/bm]);if(S.dec)out.push(['÷小数','M'+S.ml+o+'d',base])}
+      else out.push([o+(S.dec?'小数':''),'M'+S.ml+o+dec,base]);
+    });
+  }
+  return out.map(([nm,pk,b])=>{const l=limOf(pk,b*bm);return nm+' '+l.sec+'秒'+(l.first?'（はじめ）':'')}).join('・');
+}
+const pv=(s,dec)=>{if(s===''||s==='.')return null;const f=parseFloat(s);if(isNaN(f))return null;if(dec){const t=Math.round(f*10);return Math.abs(f*10-t)<1e-6?t:null}return Number.isInteger(f)?f:null};
+function judge(p,a){const q=pv(a[0],p.dec);if(q===null||q!==p.ans)return false;if(p.r!==undefined){const r=a[1]===''?0:pv(a[1],false);return r===p.r}return true}
+
+/* ---------- セッション ---------- */
+function show(id){['idle','run','res'].forEach(x=>{$('#'+x).hidden=x!==id})}
+function ph(p){phase=p;$$('.key').forEach(k=>k.disabled=p!=='q')}
+function begin(list){
+  if(!list&&!aOps().length&&!mOps().length){alert('このレベルには、ひき算の問題はありません。\n「せってい」で、たし算をオンにするか、レベルを変えてください。');return}
+  // i:出した問題数(再出題含む) nn:新しい問題の数 tot:新しい問題の目標数（再出題は別枠）
+  ses={i:0,nn:0,n:0,ok:0,tsec:0,miss:[],pend:[],streak:0,to:0,toRow:0,cnt:{a:0,m:0},cc:[0,0],nt:0,tn0:today(),list:list||null,tot:list?list.length:S.setn};
+  $('#sheet').hidden=true;show('run');ph('cd');lock();
+  $('#ft').textContent='';$('#ans').textContent='';$('#pg').textContent='';$('#tl').textContent='';$('#tb i').style.width='100%';
+  countdown();
+}
+async function countdown(){
+  const my=++tok;
+  for(const w of[['3','さん'],['2','にー'],['1','いち'],['スタート！','スタート']]){
+    if(my!==tok)return;
+    $('#qt').textContent=w[0];beep([[w[0]==='スタート！'?1100:660,.14]]);
+    // 声が読み終わるまで待つ（「スタート」が、次の問題の読み上げで切られないように）
+    await Promise.all([sleep(w[0]==='スタート！'?500:800),S.talk?say(w[1]):Promise.resolve()]);
+  }
+  if(my===tok)nextQ();
+}
+function nextQ(){
+  let re=null;
+  if(ses.list){if(ses.i>=ses.tot)return finish();cp=ses.list[ses.i]}
+  else{
+    // 予定の来た再出題 → 新しい問題 → 新しい問題が終わったら残りの再出題をすべて出す
+    let pi=ses.pend.findIndex(x=>x.at<=ses.i);
+    if(pi<0&&ses.nn>=ses.tot)pi=ses.pend.length?0:-1;
+    if(pi>=0){re=ses.pend.splice(pi,1)[0];cp=re.p}
+    else if(ses.nn<ses.tot){cp=gen();ses.nn++}
+    else return finish();
+  }
+  ses.re=re;ses.i++;ses.nn+=ses.list?1:0;ses.cnt[cp.f]++;u=['',''];fi=0;tlm=tlim(cp);
+  renderQ();
+  $('#ft').textContent=re?'もういちど！（じかんせいげんなし）':cp.r!==undefined?'わり算（あまりあり）':'';
+  const kx=$('#kx');kx.textContent=cp.dec?'.':cp.r!==undefined?'あまり':'';
+  ph('q');renderQ();kx.disabled=!(cp.dec||cp.r!==undefined);tq=performance.now();upd();
+  if(S.read)say(cp.say+' は？');
+}
+// 問題の表示: 表示オフでも、読み上げが使えないときは必ず表示する
+const voiceOn=()=>!!(syn&&S.snd&&S.read);
+const showQ=()=>S.show||!voiceOn();
+function renderQ(){if(!cp||!ses)return;$('#qt').textContent=(phase==='q'||phase==='hold')&&!showQ()?'👂 ？ ＝':cp.txt+' ＝'}
+function upd(){
+  $('#pg').textContent=Math.min(ses.nn,ses.tot)+' / '+ses.tot+(ses.pend.length&&!ses.list?'（+もういちど'+ses.pend.length+'）':'')+'　○'+ses.ok;
+  const a=$('#ans');
+  a.innerHTML=cp.r!==undefined?'<span class="'+(fi?'':'on')+'">'+(u[0]||'?')+'</span> <small>あまり</small> <span class="'+(fi?'on':'')+'">'+(u[1]||'?')+'</span>':(u[0]||'?');
+}
+setInterval(()=>{
+  if(phase!=='q')return;
+  const e=(performance.now()-tq)/1e3;
+  if(tlm){const l=tlm-e;$('#tb i').style.width=Math.max(0,l/tlm*100)+'%';$('#tb').className=l/tlm<.3?'lo':'';$('#tl').textContent='のこり '+Math.max(0,l).toFixed(1)+'秒';if(l<=0)answer(true)}
+  else{$('#tl').textContent=e.toFixed(1)+'秒';$('#tb i').style.width='100%'}
+},100);
+function key(d){
+  if(phase!=='q')return;
+  let s=u[fi];if(s.length>=8)return;
+  u[fi]=(s==='0'?'':s)+d;upd();beep([[700,.04]]);
+  if(S.auto&&cp.r===undefined&&!cp.dec&&u[0].length===String(cp.ans).length)answer(false);
+}
+function dot(){if(phase!=='q'||!cp.dec||fi||u[0].includes('.'))return;u[0]=(u[0]||'0')+'.';upd()}
+async function answer(to){
+  if(phase!=='q')return;
+  if(!to&&!u[0])return;
+  ph('fb');const my=tok,sec=(performance.now()-tq)/1e3,ok=!to&&judge(cp,u);
+  renderQ();
+  const rid=Date.now()+Math.random();
+  if(!ses.list)recs.unshift({id:rid,t:Date.now(),k:cp.k,p:cp,u:to?'':(cp.r!==undefined?u[0]+' あまり '+(u[1]||0):u[0]),ok,to,sec:+sec.toFixed(1),d:0});
+  if(recs.length>1500)recs.length=1500;
+  ses.n++;ses.toRow=to?ses.toRow+1:0;
+  // セットの平均秒・自己ベストは、新しい問題だけで計算する（再出題は入れない）
+  if(!ses.re){ses.tsec+=Math.min(sec,tlm||sec);ses.nt++}
+  // 自動ペースの履歴: 正解は実際の秒数、時間切れは制限時間の1.5倍。間違い・再出題・やり直しは入れない
+  if(!ses.list&&!ses.re&&tlm){if(ok)addSt(cp.pk,sec);else if(to)addSt(cp.pk,tlm*1.5)}
+  let msg;
+  if(ok){
+    ses.ok++;ses.streak++;
+    // やり直しで正解 → 同じ問題の未克服の記録をすべて「済」／再出題で正解 → 元の間違いを「済」
+    if(ses.list)recs.forEach(r=>{if(!r.ok&&r.k===cp.k&&r.p.txt===cp.txt)r.d=1});
+    else if(ses.re){const r=recs.find(x=>x.id===ses.re.rid);if(r)r.d=1}
+    $('#ft').innerHTML='<span class="fok">○ せいかい！</span>';beep([[880,.1],[1175,.1],[1568,.2]]);
+    msg=ses.streak%5===0?'すごい、'+ses.streak+'れんぞく':['せいかい','いいね','その調子','ばっちり'][R(0,3)];
+  }else{
+    ses.streak=0;if(to)ses.to++;
+    if(!ses.miss.some(m=>m.txt===cp.txt))ses.miss.push({txt:cp.txt,a:fa(cp)});
+    // 自動の再出題は1問につき1回まで。再出題でも間違えたら「まちがいをやり直す」へ回す
+    if(!ses.list&&!ses.re)ses.pend.push({p:cp,at:ses.i+3,rid});
+    $('#ft').innerHTML='<span class="fng">'+(to?'じかんぎれ　':'× ')+'こたえ：'+fa(cp)+'</span>';beep([[220,.18,'sawtooth'],[185,.3,'sawtooth']]);
+    msg=to?'じかんぎれ':'おしい';
+  }
+  const left=ses.list?ses.tot-ses.i:ses.tot-ses.nn+ses.pend.length;
+  if(left===3&&ses.tot>=6)msg+='、あと3もん';
+  // 声かけが最後まで読み終わってから、次の問題へ進む（短い声かけは従来の待ち時間のまま）
+  const sp=S.talk?say(msg):Promise.resolve();
+  save();upd();
+  await Promise.all([sleep(ok?650:1700),sp]);
+  if(my!==tok)return;
+  after();
+}
+function after(){
+  if(ses.toRow>=3&&!ses.list){ph('pause');$('#sheet').innerHTML='<div class="sh"><b>ちょっと休けいする？</b><div class="row"><button class="btn" data-a="quit">おわる</button><button class="btn pri" data-a="resume">つづける</button></div></div>';$('#sheet').hidden=false;if(S.talk)say('だいじょうぶ？ひとやすみしよう');return}
+  nextQ();
+}
+function finish(){
+  ph('sum');unlock();
+  const n=Math.max(ses.n,1),acc=ses.ok/n,avg=ses.tsec/Math.max(ses.nt,1),red=!!ses.list,fam=ses.cnt.a>=ses.cnt.m?'a':'m';
+  let nb=false,lu='';
+  if(!red){
+    const bk=S.setn+'|'+mk(),b=U().best[bk];
+    if(acc===1&&(!b||avg<b)){U().best[bk]=+avg.toFixed(2);nb=true}
+    const lv=fam==='a'?S.al:S.ml,gk='g'+fam+lv;
+    U().good[gk]=acc>=.9&&!ses.to?(U().good[gk]||0)+1:0;
+    const nl=fam==='a'?nextAl(lv):(lv<ML.length?lv+1:0);
+    if(U().good[gk]>=3&&nl)lu='<div class="hint">3セット連続でバッチリ！ <b data-a="lvup" data-f="'+fam+'">'+(fam==='a'?AL[nl-1][0]:ML[nl-1][0])+'に上げる</b></div>';
+  }
+  save();
+  const mc=miss().length,gh=!red&&ses.tn0<S.goal&&today()>=S.goal;
+  $('#res').innerHTML='<div class="card" style="text-align:center"><div style="font-size:46px;font-weight:800">'+ses.ok+'<small class="mu"> / '+ses.n+'</small></div><div class="mu">平均 '+avg.toFixed(1)+'秒/問'+(nb?'　🏆 自己ベスト！':'')+'</div></div>'+(gh?'<div class="card" style="text-align:center"><b style="font-size:20px">🎉 今日の目標たっせい！</b><div class="mu">'+S.goal+'問 がんばったね</div></div>':'')+lu
+   +(ses.miss.length?'<div class="card"><b>まちがい</b>'+ses.miss.map(m=>'<div class="hr"><span class="o" style="color:var(--ng)">×</span><span style="flex:1">'+esc(m.txt)+'</span><b>'+esc(m.a)+'</b></div>').join('')+'</div>':'')
+   +'<div class="row">'+(mc?'<button class="btn" data-a="redo">↺ やり直す（'+Math.min(mc,20)+'問）</button>':'')+'<button class="btn pri" data-a="more">もう1セット</button></div><button class="btn" data-a="quit">おわる</button>';
+  show('res');
+  if(acc>=.9||nb||gh)conf();
+  if(S.talk)say(gh?'きょうの もくひょう たっせい！ おつかれさま':acc>=.9?'ぜんぶすごい！おつかれさま':'おつかれさま');
+  renderLog();
+}
+function redo(){const l=miss().slice(0,20).map(r=>r.p);if(l.length)begin(l)}
+
+/* ---------- 画面 ---------- */
+function streak(){const s=new Set(recs.map(r=>dk(r.t)));let n=0;const d=new Date();if(!s.has(dk(d)))d.setDate(d.getDate()-1);while(s.has(dk(d))){n++;d.setDate(d.getDate()-1)}return n}
+function today(){const d=dk(Date.now());return recs.filter(r=>dk(r.t)===d).length}
+function renderIdle(){
+  const tn=today(),ms=miss().length,st=streak();
+  $('#goal').innerHTML='<div class="row" style="justify-content:space-between"><b>今日の目標</b><span>'+tn+' / '+S.goal+'問'+(st?' ・'+st+'日連続':'')+'</span></div>'+(tn>=S.goal?'<div style="text-align:center;font-weight:800;margin:4px 0">🎉 今日の目標たっせい！</div>':'')+'<div class="bar"><i style="width:'+Math.min(100,tn/S.goal*100)+'%"></i></div>';
+  const ops=[S.oa&&'＋',S.os&&'－',S.om&&'×',S.od&&'÷'].filter(Boolean).join(' ');
+  $('#sumry').innerHTML='<div><b>'+ops+'</b>　'+S.setn+'問　ペース：'+({none:'時間制限なし',slow:'自動（ゆっくり）',auto:'自動（ふつう）',fast:'自動（はやめ）',fix:S.fix+'秒'})[S.pace]+'</div>'
+   +(isAuto()&&(aOps().length||mOps().length)?'<div class="mu">いまの制限時間のめやす：'+esc(paceInfo())+'</div>':'')
+   +(S.oa||S.os?'<div class="mu">たし・ひき：'+AL[S.al-1][0]+'</div>':'')
+   +(S.os&&AL[S.al-1][6]?'<div class="mu" style="color:var(--ng)">※このレベルには、ひき算の問題はありません'+(aOps().length||mOps().length?'（ひき算は出ません）':'')+'</div>':'')+(S.om||S.od?'<div class="mu">かけ・わり：'+ML[S.ml-1][0]+'</div>':'')
+   +(S.dec?'<div class="mu">小数あり</div>':'')+(S.rem&&S.od?'<div class="mu">わり算あまりあり</div>':'');
+  const b=$('#bRedo');b.hidden=!ms;b.textContent='↺ まちがいをやり直す（'+Math.min(ms,20)+'問）';
+}
+function chart(){
+  const days=[],by={};for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(dk(d))}
+  recs.forEach(r=>{const k=dk(r.t);(by[k]=by[k]||[0,0])[0]++;if(r.ok)by[k][1]++});
+  const mx=Math.max(10,...days.map(d=>by[d]?by[d][0]:0));
+  return '<svg viewBox="0 0 290 108" width="100%" role="img" aria-label="直近7日の問題数">'+days.map((d,i)=>{
+    const[n,o]=by[d]||[0,0],h=n/mx*66,ho=o/mx*66,x=i*41+7;
+    return '<rect x="'+x+'" y="'+(80-h)+'" width="27" height="'+h+'" rx="4" fill="var(--ng)" opacity=".65"/><rect x="'+x+'" y="'+(80-ho)+'" width="27" height="'+ho+'" rx="4" fill="var(--ok)"/><text x="'+(x+13.5)+'" y="98" text-anchor="middle">'+d.slice(5).replace('-','/')+'</text>'+(n?'<text class="t" x="'+(x+13.5)+'" y="'+(75-h)+'" text-anchor="middle">'+n+'</text>':'');
+  }).join('')+'</svg>';
+}
+function renderLog(){
+  const tr=recs.filter(r=>dk(r.t)===dk(Date.now())),pct=(a,b)=>b?Math.round(a/b*100)+'%':'-',m={};
+  recs.slice(0,300).forEach(r=>{const x=m[r.k]=m[r.k]||[0,0];x[0]++;if(!r.ok)x[1]++});
+  const weak=Object.entries(m).filter(([,x])=>x[0]>=5&&x[1]>0).sort((a,b)=>b[1][1]/b[1][0]-a[1][1]/a[1][0]).slice(0,3);
+  $('#log').innerHTML='<div class="card sg"><div><b>'+streak()+'日</b><small>連続練習</small></div><div><b>'+pct(tr.filter(r=>r.ok).length,tr.length)+'</b><small>今日の正答率</small></div><div><b>'+pct(recs.filter(r=>r.ok).length,recs.length)+'</b><small>通算正答率</small></div></div>'
+   +'<div class="card" style="margin-top:8px"><b>直近7日</b>'+chart()+'</div>'
+   +(weak.length?'<div class="card" style="margin-top:8px"><b>にがてな型</b>'+weak.map(([k,x])=>'<div class="hr"><span style="flex:1">'+kname(k)+'</span><span class="mu">まちがい '+Math.round(x[1]/x[0]*100)+'%</span></div>').join('')+'</div>':'')
+   +'<div class="card" style="margin-top:8px"><b>最近の問題</b>'+(recs.slice(0,40).map(r=>'<div class="hr"><span class="o" style="color:var(--'+(r.ok?'ok':'ng')+')">'+(r.ok?'○':'×')+'</span><span style="flex:1">'+esc(r.p.txt)+(r.ok?'':' → '+esc(fa(r.p)))+(r.to?' ⏱':'')+'</span><span class="mu">'+esc(r.sec)+'秒</span>'+(r.ok?'':r.d?'<span class="mu">済</span>':'<button class="ib" data-a="redo1" data-i="'+esc(r.id)+'">やり直す</button>')+'</div>').join('')||'<p class="mu">まだ記録がありません</p>')+'</div>';
+}
+function tab(t){
+  ['play','set','log'].forEach(x=>{$('#v-'+x).hidden=x!==t});
+  $$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  if(t!=='play'&&ses&&['q','cd','fb','hold','pause'].includes(phase))quit();
+  if(t==='log')renderLog();if(t==='play')renderIdle();
+}
+function quit(){tok++;stopSay();ses=null;ph('idle');unlock();$('#sheet').hidden=true;show('idle');renderIdle()}
+
+/* ---------- 設定 ---------- */
+function syncUI(){
+  $$('[data-k]').forEach(el=>{const v=S[el.dataset.k];if(el.type==='checkbox')el.checked=!!v;else el.value=v});
+  $('#r-fix').hidden=S.pace!=='fix';$('[data-k=al]').disabled=!(S.oa||S.os);$('[data-k=ml]').disabled=!(S.om||S.od);$('[data-k=rem]').disabled=!S.od;
+  $('#snd').textContent=S.snd?'🔊':'🔇';
+  // 読み上げが使えないときは、表示の切り替えはできない（常に表示）
+  const vo=voiceOn(),v=$('#vis');v.disabled=!vo;v.style.opacity=showQ()?1:.45;v.title=vo?'問題の表示／非表示':'読み上げがオフのため常に表示';
+  $('[data-k=show]').disabled=!vo;
+  renderQ();
+}
+$$('[data-k]').forEach(el=>el.addEventListener('change',()=>{
+  const k=el.dataset.k;let v=el.type==='checkbox'?el.checked:el.dataset.t==='n'?+el.value:el.value;
+  if(el.type==='number')v=Math.max(+el.min,Math.min(+el.max,Math.round(v)||+el.min));
+  S[k]=v;if(!(S.oa||S.os||S.om||S.od))S[k]=true;
+  save();syncUI();renderIdle();
+}));
+function userSel(){const s=$('#user');s.innerHTML='';Object.keys(DB.users).forEach(n=>{const o=document.createElement('option');o.value=o.textContent=n;s.appendChild(o)});s.value=DB.cur}
+function switchUser(n){DB.cur=n;save();load();userSel();syncUI();loadVoices();quit();renderLog()}
+$('#user').onchange=e=>switchUser(e.target.value);
+$('#snd').onclick=()=>{S.snd=!S.snd;save();syncUI();if(!S.snd)stopSay();else beep([[700,.05]])};
+$('#vis').onclick=()=>{if(!voiceOn())return;S.show=!S.show;save();syncUI()};
+
+/* ---------- 操作 ---------- */
+const A={
+  start:()=>begin(),
+  redo,
+  redo1:b=>{const r=recs.find(x=>x.id===+b.dataset.i);if(r){tab('play');begin([r.p])}},
+  quit,
+  pause:hold,
+  unhold,
+  resume:()=>{$('#sheet').hidden=true;ses.toRow=0;nextQ()},
+  more:()=>begin(),
+  go:()=>answer(false),
+  // 問題のところをタップすると、もう一度読み上げる
+  rq:()=>{if(phase==='q'&&voiceOn())say(cp.say+' は？')},
+  clr:()=>{if(phase==='q'){u[fi]='';upd()}},
+  bs:()=>{if(phase==='q'){u[fi]=u[fi].slice(0,-1);upd()}},
+  kx:()=>{if(phase!=='q')return;if(cp.dec)dot();else if(cp.r!==undefined){fi=1-fi;upd()}},
+  lvup:b=>{if(b.dataset.f==='a')S.al=nextAl(S.al)||S.al;else S.ml=Math.min(ML.length,S.ml+1);U().good={};save();syncUI();quit()},
+  add:()=>{const n=(prompt('新しいユーザーのなまえ')||'').trim();if(!n||DB.users[n]||n==='__proto__')return;DB.users[n]={};switchUser(n)},
+  ren:()=>{const o=DB.cur,n=(prompt('新しいなまえ',o)||'').trim();if(!n||n===o||DB.users[n]||n==='__proto__')return;DB.users[n]=DB.users[o];delete DB.users[o];switchUser(n)},
+  del:()=>{if(Object.keys(DB.users).length<2)return alert('最後の1人は削除できません');if(!confirm('「'+DB.cur+'」の設定と記録をすべて削除しますか？'))return;delete DB.users[DB.cur];switchUser(Object.keys(DB.users)[0])},
+  exp:()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(DB)],{type:'application/json'}));a.download='anzan-backup-'+dk(Date.now())+'.json';a.click()},
+  imp:()=>$('#file').click(),
+  clr2:()=>{if(confirm(DB.cur+'さんの記録を消去しますか？（設定は残ります）')){recs.length=0;U().st={};U().best={};U().good={};save();renderIdle();renderLog()}}
+};
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-a],[data-d],[data-tab]');if(!t)return;
+  if(t.dataset.tab)return tab(t.dataset.tab);
+  if(t.dataset.d!==undefined){key(t.dataset.d);t.blur();return}
+  if(A[t.dataset.a])A[t.dataset.a](t);
+  if(t.blur)t.blur();
+});
+$('#file').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  f.text().then(t=>{
+    const o=JSON.parse(t);if(!o||!o.users||!Object.keys(o.users).length)throw 0;
+    if(!confirm('いまのデータを、バックアップの内容で置き換えます。よろしいですか？'))return;
+    if(!o.users[o.cur])o.cur=Object.keys(o.users)[0];
+    DB=o;save();switchUser(DB.cur);
+  }).catch(()=>alert('読み込めませんでした'));
+  e.target.value='';
+};
+addEventListener('keyup',e=>{if(e.key===' '&&!/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))e.preventDefault()});
+addEventListener('keydown',e=>{
+  if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.key!=='Tab'&&document.activeElement&&document.activeElement.tagName==='BUTTON')document.activeElement.blur();
+  if(e.key>='0'&&e.key<='9')key(e.key);
+  else if(e.key==='.')dot();
+  else if(e.key==='Backspace')A.bs();
+  else if(e.key===' '){e.preventDefault();A.kx()}
+  else if(e.key==='Enter'){
+    e.preventDefault();if(e.repeat)return;
+    if(!$('#sheet').hidden){const b=$('#sheet .pri');if(b)b.click()}
+    else if(phase==='q')answer(false);
+    else if(!$('#idle').hidden)begin();
+    else if(phase==='sum')begin();
+  }
+});
+
+/* ---------- 起動 ---------- */
+$('[data-k=al]').innerHTML=AL.map((l,i)=>'<option value="'+(i+1)+'">'+(i+1)+'. '+l[0]+'</option>').join('');
+$('[data-k=ml]').innerHTML=ML.map((l,i)=>'<option value="'+(i+1)+'">'+(i+1)+'. '+l[0]+'</option>').join('');
+load();userSel();loadVoices();if(syn)syn.onvoiceschanged=loadVoices;syncUI();ph('idle');renderIdle();renderLog();
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
