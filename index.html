@@ -36,7 +36,10 @@ main{flex:1;min-height:0;position:relative}
 .btn{flex:1;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 8px;font-weight:700;cursor:pointer;touch-action:manipulation}
 .btn.pri{background:var(--ac);color:#1b1305;border-color:transparent}
 .btn.lg{flex:none;padding:20px;font-size:22px}
-.btn:active,.key:active{transform:scale(.96)}
+.btn:active{transform:scale(.96)}
+/* キーは大きさを変えず色で押下を示す(縮めると縁のタップが外れる)。.pr は pointerdown 直後に付く */
+.key:active,.key.pr{background:var(--line);border-color:var(--ac)}
+.go:active,.go.pr{background:var(--ac);filter:brightness(.88)}
 .meta{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mu)}
 #tb{height:9px;border-radius:6px;background:var(--line);overflow:hidden}
 #tb i{display:block;height:100%;width:100%;background:var(--ok);transition:width .1s linear}
@@ -46,7 +49,7 @@ main{flex:1;min-height:0;position:relative}
 #ft{min-height:28px;font-weight:700;font-size:18px}.fok{color:var(--ok)}.fng{color:var(--ng)}
 #ans{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 14px;text-align:right;min-height:54px;font:800 30px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--ac);white-space:nowrap;overflow-x:auto}
 #ans span.on{border-bottom:3px solid var(--ac)}#ans small{font:600 14px system-ui;color:var(--mu)}
-.pad{flex:1;min-height:200px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pad{flex:1;min-height:200px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;touch-action:none}
 .key{border:1px solid var(--line);background:var(--card);border-radius:14px;font:700 26px/1 ui-monospace,Menlo,Consolas,monospace;cursor:pointer;touch-action:manipulation}
 .key:disabled{opacity:.35}.key.f{font-size:17px;color:var(--mu)}.z,.go{grid-column:span 2}
 .go{background:var(--ac);color:#1b1305;border-color:transparent;font:800 20px system-ui}
@@ -251,6 +254,8 @@ function unlockAudio(){
   try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state!=='running')ac.resume();const b=ac.createBuffer(1,1,22050),o=ac.createBufferSource();o.buffer=b;o.connect(ac.destination);o.start(0)}catch(e){}
 }
 ['pointerdown','touchend','click','keydown'].forEach(t=>addEventListener(t,unlockAudio,{capture:true,once:true,passive:true}));
+// pointerdown ではiOSがAudioContextの再開を許可しないことがあるため、touchend/click でも再開を試みる
+['touchend','click'].forEach(t=>addEventListener(t,()=>{try{if(ac&&ac.state!=='running')ac.resume().catch(()=>{})}catch(e){}},{capture:true,passive:true}));
 async function lock(){try{if('wakeLock'in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.onrelease=()=>{wl=null}}}catch(e){}}
 function unlock(){if(wl){wl.release().catch(()=>{});wl=null}}
 // 一時停止: 画面を離れたとき・⏸を押したとき。制限時間は止まり、再開すると残りの時間から続く。
@@ -590,10 +595,23 @@ const A={
 };
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-a],[data-d],[data-tab]');if(!t)return;
+  // 入力パッドは下の pointerdown で処理済み。click は、キーボード操作・読み上げ支援などの「仮想クリック」(detail=0)だけ受ける
+  if(t.closest('.pad')&&e.detail>0)return;
   if(t.dataset.tab)return tab(t.dataset.tab);
   if(t.dataset.d!==undefined){key(t.dataset.d);t.blur();return}
   if(A[t.dataset.a])A[t.dataset.a](t);
   if(t.blur)t.blur();
+});
+// 入力パッド(数字・⌫・C・小数点/あまり・こたえる)は、指が触れた瞬間(pointerdown)に処理する。
+//  click は「指を離したとき」に発火するため、押している時間ぶん反応が遅れる。
+//  さらに、前の指を離す前に次の指が触れる(両手・速打ち)と、ブラウザは click を発火しないため、入力が丸ごと消える。
+function press(t){if(t.dataset.d!==undefined)key(t.dataset.d);else if(A[t.dataset.a])A[t.dataset.a](t)}
+$('.pad').addEventListener('pointerdown',e=>{
+  const t=e.target.closest('.key');
+  if(!t||t.disabled||(e.pointerType==='mouse'&&e.button))return;
+  e.preventDefault();
+  t.classList.add('pr');setTimeout(()=>t.classList.remove('pr'),110);
+  press(t);
 });
 $('#file').onchange=e=>{
   const f=e.target.files[0];if(!f)return;
