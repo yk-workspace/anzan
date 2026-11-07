@@ -54,7 +54,7 @@
 4. 数分後、`https://<ユーザー名>.github.io/<リポジトリ名>/` で公開されます
 
 ### 更新したとき
-`sw.js` の `CACHE` の値（現在は `anzan-drill-v7`）を `anzan-drill-v8` のように変えてpushすると、利用者側のキャッシュが入れ替わります。
+`sw.js` の `CACHE` の値（現在は `anzan-drill-v8`）を `anzan-drill-v9` のように変えてpushすると、利用者側のキャッシュが入れ替わります。
 
 ## ファイル構成
 

@@ -69,6 +69,14 @@ nav button{flex:1;background:none;border:0;padding:7px 0 5px;color:var(--mu);fon
 nav button b{display:block;font-size:19px;line-height:1.2}nav .on{color:var(--ac)}
 canvas{position:fixed;inset:0;pointer-events:none;z-index:30}
 @media(max-height:660px){.q{min-height:110px}.pad{min-height:170px}}
+/* 横向き(低い画面): 左に問題・答え、右にパッド。縦スクロールなしで収める */
+@media(orientation:landscape) and (max-height:520px){
+  #run{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto minmax(0,1fr) auto;column-gap:12px;row-gap:8px}
+  #run>.meta{grid-column:1;grid-row:1}#run>#tb{grid-column:1;grid-row:2}
+  #run>.q{grid-column:1;grid-row:3;min-height:0}#run>#ans{grid-column:1;grid-row:4}
+  #run>.pad{grid-column:2;grid-row:1/5;min-height:0}
+  #qt{font-size:clamp(30px,8vh,48px)}
+}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -166,7 +174,12 @@ const ML=[['九九（1桁×1桁）',[1,1],[2,9,1,9],6],['2桁×1桁・小さい�
 /* ---------- 保存 ---------- */
 let DB=null;try{DB=JSON.parse(localStorage.getItem('anzan2'))}catch(e){}
 if(!DB||!DB.users||!DB.users[DB.cur])DB={cur:'じぶん',users:{'じぶん':{}}};
-const save=()=>{try{localStorage.setItem('anzan2',JSON.stringify(DB))}catch(e){}};
+// 保存は0.5秒まとめて1回にする(記録が増えると全データの書き込みが重くなるため)。画面を離れる・閉じるときは即保存。
+let saveT=0;
+const saveNow=()=>{clearTimeout(saveT);saveT=0;try{localStorage.setItem('anzan2',JSON.stringify(DB))}catch(e){}};
+const save=()=>{if(!saveT)saveT=setTimeout(saveNow,500)};
+addEventListener('pagehide',saveNow);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveNow()});
 const U=()=>DB.users[DB.cur];
 let S,recs;
 function load(){const u=U();u.s=u.s||{};u.r=Array.isArray(u.r)?u.r:[];u.st=u.st||{};u.best=u.best||{};u.good=u.good||{};S=Object.assign({},DEF,u.s);u.s=S;recs=u.r}
@@ -605,7 +618,8 @@ document.addEventListener('click',e=>{
 // 入力パッド(数字・⌫・C・小数点/あまり・こたえる)は、指が触れた瞬間(pointerdown)に処理する。
 //  click は「指を離したとき」に発火するため、押している時間ぶん反応が遅れる。
 //  さらに、前の指を離す前に次の指が触れる(両手・速打ち)と、ブラウザは click を発火しないため、入力が丸ごと消える。
-function press(t){if(t.dataset.d!==undefined)key(t.dataset.d);else if(A[t.dataset.a])A[t.dataset.a](t)}
+function press(t){if(S.snd&&navigator.vibrate)try{navigator.vibrate(10)}catch(e){}
+  if(t.dataset.d!==undefined)key(t.dataset.d);else if(A[t.dataset.a])A[t.dataset.a](t)}
 $('.pad').addEventListener('pointerdown',e=>{
   const t=e.target.closest('.key');
   if(!t||t.disabled||(e.pointerType==='mouse'&&e.button))return;

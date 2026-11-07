@@ -1,5 +1,5 @@
 // 更新を配信したら CACHE を変更(v2, v3 ...)すると、利用者側のキャッシュが入れ替わります。
-const CACHE = 'anzan-drill-v7';
+const CACHE = 'anzan-drill-v8';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
